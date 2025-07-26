@@ -128,7 +128,7 @@ const loadAllData = async () => {
 
     // Load Order Items
     await loadCSVData('./data/order_items.csv', OrderItem, (data) => ({
-      id: parseInteger(data.id),
+      _id: parseInteger(data.id),
       order_id: parseInteger(data.order_id),
       user_id: parseInteger(data.user_id),
       product_id: parseInteger(data.product_id),
