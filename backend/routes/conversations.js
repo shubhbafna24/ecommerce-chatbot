@@ -36,59 +36,109 @@ router.get('/session/:sessionId', async (req, res) => {
 });
 
 // Unified endpoint: POST /api/chat
+// router.post('/', async (req, res) => {
+//   try {
+//     const { userId, message, sessionId } = req.body;
+
+//     if (!userId || !message) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'userId and message are required'
+//       });
+//     }
+
+//     let session;
+
+//     if (sessionId) {
+//       session = await ConversationSession.findOne({ sessionId });
+//     }
+
+//     if (!session) {
+//       const newSessionId = `sess-${Date.now()}`;
+//       session = await ConversationSession.create({
+//         sessionId: newSessionId,
+//         userId
+//       });
+//     }
+
+//     // Save user message
+//     const userMessage = await Message.create({
+//       sessionId: session.sessionId,
+//       sender: 'user',
+//       message
+//     });
+
+//     // Generate dummy AI response
+//     const aiReplyText = `This is a dummy AI response to: "${message}"`;
+
+//     const aiMessage = await Message.create({
+//       sessionId: session.sessionId,
+//       sender: 'ai',
+//       message: aiReplyText
+//     });
+
+//     return res.json({
+//       success: true,
+//       sessionId: session.sessionId,
+//       messages: [userMessage, aiMessage]
+//     });
+
+//   } catch (err) {
+//     console.error('Chat API Error:', err);
+//     res.status(500).json({ success: false, error: err.message });
+//   }
+// });
+
+
+//const express = require('express');
+//const router = express.Router();
+//const Message = require('../models/Message');
+//const ConversationSession = require('../models/ConversationSession');
+const askLLM = require('../utils/llm');
+
 router.post('/', async (req, res) => {
   try {
     const { userId, message, sessionId } = req.body;
 
-    if (!userId || !message) {
-      return res.status(400).json({
-        success: false,
-        message: 'userId and message are required'
-      });
-    }
-
-    let session;
-
-    if (sessionId) {
-      session = await ConversationSession.findOne({ sessionId });
-    }
-
+    // Create new session if needed
+    let session = sessionId;
     if (!session) {
-      const newSessionId = `sess-${Date.now()}`;
-      session = await ConversationSession.create({
-        sessionId: newSessionId,
-        userId
+      const newSession = await ConversationSession.create({
+        userId,
+        sessionId: `sess-${Date.now()}`
       });
+      session = newSession.sessionId;
     }
 
     // Save user message
-    const userMessage = await Message.create({
-      sessionId: session.sessionId,
+    await Message.create({
+      sessionId: session,
       sender: 'user',
       message
     });
 
-    // Generate dummy AI response
-    const aiReplyText = `This is a dummy AI response to: "${message}"`;
+    // Ask LLM
+    const aiReplyText = await askLLM(message);
 
-    const aiMessage = await Message.create({
-      sessionId: session.sessionId,
+    // Save AI message
+    await Message.create({
+      sessionId: session,
       sender: 'ai',
       message: aiReplyText
     });
 
-    return res.json({
-      success: true,
-      sessionId: session.sessionId,
-      messages: [userMessage, aiMessage]
-    });
+    // Return messages
+    const messages = await Message.find({ sessionId: session }).sort({ timestamp: 1 });
 
+    res.json({
+      success: true,
+      sessionId: session,
+      messages
+    });
   } catch (err) {
-    console.error('Chat API Error:', err);
+    console.error(err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
-
-
 
 module.exports = router;
