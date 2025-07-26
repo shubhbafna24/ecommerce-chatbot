@@ -35,4 +35,60 @@ router.get('/session/:sessionId', async (req, res) => {
   }
 });
 
+// Unified endpoint: POST /api/chat
+router.post('/', async (req, res) => {
+  try {
+    const { userId, message, sessionId } = req.body;
+
+    if (!userId || !message) {
+      return res.status(400).json({
+        success: false,
+        message: 'userId and message are required'
+      });
+    }
+
+    let session;
+
+    if (sessionId) {
+      session = await ConversationSession.findOne({ sessionId });
+    }
+
+    if (!session) {
+      const newSessionId = `sess-${Date.now()}`;
+      session = await ConversationSession.create({
+        sessionId: newSessionId,
+        userId
+      });
+    }
+
+    // Save user message
+    const userMessage = await Message.create({
+      sessionId: session.sessionId,
+      sender: 'user',
+      message
+    });
+
+    // Generate dummy AI response
+    const aiReplyText = `This is a dummy AI response to: "${message}"`;
+
+    const aiMessage = await Message.create({
+      sessionId: session.sessionId,
+      sender: 'ai',
+      message: aiReplyText
+    });
+
+    return res.json({
+      success: true,
+      sessionId: session.sessionId,
+      messages: [userMessage, aiMessage]
+    });
+
+  } catch (err) {
+    console.error('Chat API Error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
+
 module.exports = router;

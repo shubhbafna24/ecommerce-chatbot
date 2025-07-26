@@ -359,6 +359,9 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use('/api/conversations', require('./routes/conversations'));
 connectDB();
 
+app.use('/api/chat', require('./routes/conversations'));
+
+
 // Test route only
 app.get('/', (req, res) => {
   res.json({ message: 'Test OK', status: 'running' });
